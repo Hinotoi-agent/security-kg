@@ -63,6 +63,19 @@ python -m security_kg.cli candidates /tmp/security-kg-smoke
 
 ## Obsidian finding-vault usage
 
+Export a source-code candidate into a draft Obsidian finding note:
+
+```bash
+python -m security_kg.cli export-finding /path/to/repo/.security-kg \
+  --candidate resume-load_by_id-3 \
+  --vault "/path/to/example-vault" \
+  --target "Target - Example App" \
+  --repo-url "https://github.com/example-org/example-repo"
+```
+
+The command writes a note under `03 - Findings/` with security-kg frontmatter,
+line-backed evidence, proof strategy, duplicate-check prompts, and PR/disclosure placeholders.
+
 Build graph artifacts in a vault:
 
 ```bash
@@ -133,5 +146,4 @@ python3 -m compileall src tests examples
 - Add list-filter/direct-load drift detection.
 - Add bearer handle ownership checks for jobs, processes, sessions, and artifacts.
 - Add deterministic proof-skeleton generation.
-- Add candidate-to-vault-note export.
 - Add richer vault graph pivots for duplicate posture and sibling variants.

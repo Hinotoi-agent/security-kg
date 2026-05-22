@@ -10,6 +10,7 @@ from security_kg.invariants import find_candidates
 from security_kg.io import graph_to_dict, is_graph_dir, read_graph_jsonl, write_graph_jsonl
 from security_kg.report import render_candidate_markdown
 from security_kg.schema import Graph
+from security_kg.vault.export import export_candidate_note
 from security_kg.vault.finding_graph import build_vault_graph
 from security_kg.vault.writers import write_vault_artifacts
 
@@ -45,6 +46,26 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Emit JSON instead of Markdown",
     )
+
+    export_parser = subparsers.add_parser(
+        "export-finding",
+        help="Export an invariant-backed candidate to an Obsidian finding note",
+    )
+    export_parser.add_argument(
+        "source",
+        type=Path,
+        help="Repository path or graph directory produced by `security-kg map --out`",
+    )
+    export_parser.add_argument("--candidate", required=True, help="Candidate ID to export")
+    export_parser.add_argument("--vault", required=True, type=Path, help="Path to Obsidian vault")
+    export_parser.add_argument("--target", required=True, help="Target note title for frontmatter")
+    export_parser.add_argument(
+        "--repo-url",
+        default="",
+        help="GitHub repository URL for frontmatter",
+    )
+    export_parser.add_argument("--findings-dir", default="03 - Findings")
+    export_parser.add_argument("--status", default="draft")
 
     vault_graph_parser = subparsers.add_parser(
         "vault-graph",
@@ -95,6 +116,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(render_candidate_markdown(candidate))
         return 0
 
+    if args.command == "export-finding":
+        return _run_export_finding(args)
+
     if args.command == "vault-graph":
         return _run_vault_graph(args)
 
@@ -106,6 +130,27 @@ def _load_graph_or_map_repo(source: Path) -> Graph:
     if is_graph_dir(source):
         return read_graph_jsonl(source)
     return map_repo(source)
+
+
+def _run_export_finding(args: argparse.Namespace) -> int:
+    graph = _load_graph_or_map_repo(args.source)
+    candidates = find_candidates(graph)
+    candidate = next((item for item in candidates if item.id == args.candidate), None)
+    if candidate is None:
+        available = ", ".join(item.id for item in candidates) or "none"
+        message = f"Candidate not found: {args.candidate}. Available candidates: {available}"
+        raise SystemExit(message)
+
+    path = export_candidate_note(
+        candidate,
+        vault=args.vault.expanduser().resolve(),
+        target=args.target,
+        repo_url=args.repo_url,
+        findings_dir=args.findings_dir,
+        status=args.status,
+    )
+    print(json.dumps({"finding_note": str(path)}, indent=2))
+    return 0
 
 
 def _run_vault_graph(args: argparse.Namespace) -> int:
