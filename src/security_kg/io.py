@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -10,20 +11,41 @@ from security_kg.schema import Edge, Graph, Node
 META_FILE = "meta.json"
 NODES_FILE = "nodes.jsonl"
 EDGES_FILE = "edges.jsonl"
+GRAPH_SCHEMA_VERSION = "vulnweave.graph.v1"
+CANDIDATE_SCHEMA_VERSION = "vulnweave.candidates.v1"
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def graph_to_dict(graph: Graph) -> dict[str, Any]:
     """Serialize a graph to a JSON-compatible dictionary."""
     return {
-        "root": str(graph.root),
+        "schema_version": GRAPH_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "source": {"root": str(graph.root), "tool": "vulnweave"},
+        "root": str(graph.root),  # compatibility with early MVP output
         "nodes": [asdict(node) for node in graph.nodes],
         "edges": [asdict(edge) for edge in graph.edges],
     }
 
 
+def candidates_to_dict(candidates: list[Any], source: str | Path | None = None) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "schema_version": CANDIDATE_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "candidates": [asdict(candidate) for candidate in candidates],
+    }
+    if source is not None:
+        data["source"] = str(source)
+    return data
+
+
 def graph_from_dict(data: dict[str, Any]) -> Graph:
     """Load a graph from a dictionary produced by graph_to_dict."""
-    graph = Graph(root=Path(data["root"]))
+    root = data.get("root") or data.get("source", {}).get("root")
+    graph = Graph(root=Path(root))
     graph.nodes = [Node(**node) for node in data.get("nodes", [])]
     graph.edges = [Edge(**edge) for edge in data.get("edges", [])]
     return graph
@@ -35,7 +57,17 @@ def write_graph_jsonl(graph: Graph, out_dir: str | Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
 
     (target / META_FILE).write_text(
-        json.dumps({"root": str(graph.root)}, indent=2, sort_keys=True) + "\n",
+        json.dumps(
+            {
+                "schema_version": GRAPH_SCHEMA_VERSION,
+                "generated_at": utc_now_iso(),
+                "root": str(graph.root),
+                "tool": "vulnweave",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
         encoding="utf-8",
     )
     _write_jsonl(target / NODES_FILE, (asdict(node) for node in graph.nodes))

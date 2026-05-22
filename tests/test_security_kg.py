@@ -41,10 +41,11 @@ def resume_command(backend, session_id):
     assert commands[0].attrs["remote_admin_opt_in"] is False
 
     assert any(
-        node.kind == "session_scope" and "sender" in node.attrs["parts"]
-        for node in graph.nodes
+        node.kind == "session_scope" and "sender" in node.attrs["parts"] for node in graph.nodes
     )
     assert any(node.kind == "sink" and node.name == "load_by_id" for node in graph.nodes)
+    assert any(edge.kind == "handled_by" for edge in graph.edges)
+    assert any(edge.kind == "calls" for edge in graph.edges)
 
 
 def test_flags_remote_resume_direct_load_drift(tmp_path: Path):
@@ -62,6 +63,7 @@ def test_flags_remote_resume_direct_load_drift(tmp_path: Path):
     assert "/resume" in candidate.title
     assert "remote chat sender" in candidate.boundary
     assert "load_by_id" in "\n".join(candidate.evidence)
+    assert any("handler resume_command" in step for step in candidate.graph_path)
 
     markdown = render_candidate_markdown(candidate)
     assert "## Candidate" in markdown
@@ -84,6 +86,61 @@ def test_round_trips_graph_jsonl_and_finds_candidates(tmp_path: Path):
     assert [node.id for node in loaded.nodes] == [node.id for node in original.nodes]
     assert [edge.target for edge in loaded.edges] == [edge.target for edge in original.edges]
     assert find_candidates(loaded)[0].pattern == "remote-command-session-direct-load"
+
+
+def test_detects_additional_high_signal_patterns(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text(
+        """
+from app import CommandSpec
+
+CommandSpec(name='/upload', handler='upload', remote_invocable=True)
+
+def scoped_query(user, tenant, db):
+    return db.query('items').filter(user=user, tenant=tenant)
+
+def get_item(item_id, db):
+    return db.get_by_id(item_id)
+
+def upload(filename, data, archive, llm, tool):
+    open(filename, 'wb').write(data)
+    archive.extractall(filename)
+    prompt = llm.chat(data)
+    return tool.call_tool(prompt)
+
+@app.route('/webhook')
+def webhook(path):
+    return open(path, 'w')
+""".strip(),
+        encoding="utf-8",
+    )
+
+    patterns = {candidate.pattern for candidate in find_candidates(map_repo(repo))}
+
+    assert "list-filter-direct-load-drift" in patterns
+    assert "upload-write-path-traversal-or-symlink-risk" in patterns
+    assert "prompt-content-injection-to-host-tool-boundary" in patterns
+    assert "public-webhook-route-auth-drift" in patterns
+
+
+def test_detects_bearer_handle_without_scope(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text(
+        """
+from app import CommandSpec
+
+CommandSpec(name='/artifact', handler='get_artifact', remote_invocable=True)
+
+def get_artifact(artifact_id, db):
+    return db.get_by_id(artifact_id)
+""".strip(),
+        encoding="utf-8",
+    )
+
+    patterns = {candidate.pattern for candidate in find_candidates(map_repo(repo))}
+    assert "bearer-handle-ownership-gap" in patterns
 
 
 def write_vulnerable_fixture(repo: Path) -> None:

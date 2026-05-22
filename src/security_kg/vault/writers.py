@@ -23,6 +23,7 @@ KIND_COLORS = {
 def write_vault_graph_json(graph: Graph, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {
+        "schema_version": "vulnweave.vault_graph.v1",
         "root": str(graph.root),
         "nodes": [asdict(node) for node in sorted(graph.nodes, key=lambda n: n.id)],
         "edges": [asdict(edge) for edge in graph.edges],

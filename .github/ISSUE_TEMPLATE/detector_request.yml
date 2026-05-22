@@ -1,0 +1,34 @@
+name: Detector request
+description: Propose a focused invariant detector
+title: "detector: "
+labels: [enhancement, detector]
+body:
+  - type: textarea
+    id: invariant
+    attributes:
+      label: Security invariant
+      description: What property should hold?
+    validations:
+      required: true
+  - type: textarea
+    id: vulnerable
+    attributes:
+      label: Vulnerable pattern
+      description: Show a minimal source/sink shape.
+    validations:
+      required: true
+  - type: textarea
+    id: safe
+    attributes:
+      label: Safe pattern
+      description: What should compliant code look like?
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Candidate evidence
+      description: What evidence should VulnWeave print?
+  - type: textarea
+    id: false_positives
+    attributes:
+      label: False-positive considerations
+      description: When should this not fire?
