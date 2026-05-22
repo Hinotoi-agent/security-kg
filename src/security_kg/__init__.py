@@ -1,4 +1,4 @@
-"""Intent-aware security knowledge graph prototype."""
+"""VulnWeave: local-first vulnerability research graph tooling."""
 
 __all__ = ["__version__"]
 

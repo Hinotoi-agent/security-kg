@@ -16,8 +16,10 @@ from security_kg.vault.writers import write_vault_artifacts
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="security-kg",
-        description="Build security knowledge graphs from source repos and finding vaults.",
+        prog="vulnweave",
+        description=(
+            "Build local vulnerability research graphs from source repos and finding vaults."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -38,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     candidates_parser.add_argument(
         "source",
         type=Path,
-        help="Repository path or graph directory produced by `security-kg map --out`",
+        help="Repository path or graph directory produced by `vulnweave map --out`",
     )
     candidates_parser.add_argument(
         "--json",
@@ -121,9 +123,9 @@ def _run_vault_graph(args: argparse.Namespace) -> int:
     )
     output_dir = vault / args.output_dir
     outputs = {
-        "graph_json": output_dir / "security-finding-graph.json",
-        "canvas": output_dir / "Security Finding Graph.canvas",
-        "dashboard": output_dir / "Security Finding Graph.md",
+        "graph_json": output_dir / "vulnweave-graph.json",
+        "canvas": output_dir / "VulnWeave Graph.canvas",
+        "dashboard": output_dir / "VulnWeave Graph.md",
     }
     summary = {
         "vault": str(vault),

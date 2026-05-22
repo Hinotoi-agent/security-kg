@@ -1,109 +1,167 @@
-# security-kg
+# VulnWeave
 
-`security-kg` is a lightweight, local-first security knowledge graph toolkit for source-code vulnerability review and Obsidian-based finding management.
+**VulnWeave** is a local-first vulnerability research graph for people who review source code, prove security findings, and keep a long-running finding vault.
 
-It now combines two formerly separate workflows:
+It connects two parts of security research that usually live in different places:
 
-1. **Repo/code graph:** map source repositories into security-relevant facts and detect invariant-backed review candidates.
-2. **Finding/vault graph:** scan an Obsidian security research vault and generate graph artifacts for duplicate checks, coverage review, variant hunting, and reporting context.
+1. **Code evidence** — security-relevant facts extracted from a source repository: commands, scope/tenant intent, direct-load sinks, and invariant violations.
+2. **Research memory** — Obsidian finding notes, targets, CWEs, tags, PRs, CVEs, and duplicate/variant relationships.
 
-This is intentionally not a vulnerability oracle. It produces review candidates and research maps that still require local proof, duplicate checks, and maintainer-safe reporting.
+The goal is not to replace manual review. VulnWeave gives reviewers a graph-shaped workbench: map a repo, surface candidate invariants, prove or reject the candidate, then keep the finding connected to prior work so duplicate checks and variant hunting become easier over time.
 
-## Current MVP
+## Why this exists
 
-The source-code extractor detects:
+Security findings are rarely isolated facts. A useful report usually depends on a chain like:
 
-- command registrations such as `CommandSpec(name='/resume', remote_invocable=True)`
-- session-scope construction that includes actor fields such as `sender`, `user`, or `tenant`
+```text
+entry point -> trust boundary -> identity/scope assumption -> sensitive sink -> proof -> patch/report history
+```
+
+Most tools lose that context:
+
+- SAST tools find noisy syntax patterns but do not know your prior duplicate decisions.
+- Notes capture human judgment but are hard to query across repos, CWEs, PRs, and variants.
+- PRs and disclosures record outcomes but are disconnected from source-level evidence.
+
+VulnWeave tries to make that chain explicit and reusable.
+
+## What VulnWeave can do today
+
+### Source repository graph
+
+`vulnweave map` walks a source tree and emits a small security-relevant graph. The current MVP recognizes patterns such as:
+
+- command/control-plane registrations like `CommandSpec(name="/resume", remote_invocable=True)`
+- actor/scope construction that mentions fields such as `sender`, `user`, or `tenant`
 - direct object/session load sinks such as `load_by_id`, `get_by_id`, and `read_by_id`
-- a first invariant: remote control-plane command plus scoped session intent plus global direct-load sink
+- a first invariant: remote control-plane command + scoped session intent + global direct-load sink
 
-The vault graph builder detects from Obsidian Markdown:
+### Candidate review
+
+`vulnweave candidates` reads either a source repo or a persisted graph directory and prints review candidates with supporting evidence. These are **not automatic vulnerability claims**; they are structured prompts for manual proof.
+
+### Finding-vault graph
+
+`vulnweave vault-graph` scans an Obsidian vault and writes graph artifacts that help with:
+
+- duplicate checks before opening a new issue or PR
+- sibling/variant hunting across repos and bug classes
+- coverage review by target, CWE, CVE, tag, or disclosure status
+- keeping public PRs, notes, and target pages connected
+
+The vault scanner reads normal Markdown plus optional YAML frontmatter. It extracts:
 
 - finding notes and target notes
 - wikilinks and hashtags
 - CWE/CVE mentions
-- GitHub repository URLs and pull request URLs
+- GitHub repository and pull request URLs
 - frontmatter fields such as `type`, `target`, `status`, `severity`, `cwe`, `tags`, `pr`, and `repo`
 
 ## Installation
 
-For local development, install the package in editable mode with its development tools:
+For local development:
 
 ```bash
-git clone https://github.com/Hinotoi-agent/security-kg
-cd security-kg
+git clone https://github.com/Hinotoi-agent/vulnweave
+cd vulnweave
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
+vulnweave --help
+```
+
+The old `security-kg` command is kept as a compatibility alias for now:
+
+```bash
 security-kg --help
 ```
 
-If you only want to run the CLI from a checkout without installing it, prefix commands with
-`PYTHONPATH=src python -m security_kg.cli`.
-
-## Source repo usage
-
-Map a repository and print a summary:
+If you only want to run from a checkout without installing it:
 
 ```bash
-security-kg map /path/to/repo
+PYTHONPATH=src python -m security_kg.cli --help
 ```
 
-Map a repository and persist the graph for later review:
+## Quick start
+
+Run the bundled smoke fixture:
 
 ```bash
-security-kg map /path/to/repo --out /path/to/repo/.security-kg
+vulnweave map examples/remote_resume_drift --out /tmp/vulnweave-smoke
+vulnweave candidates /tmp/vulnweave-smoke
 ```
 
-Find candidates either directly from the repo or from the persisted graph:
+You should see a mapped graph summary and at least one invariant-backed candidate from the fixture.
+
+## Source repo workflow
+
+Map a repository and print a short summary:
 
 ```bash
-security-kg candidates /path/to/repo
-security-kg candidates /path/to/repo/.security-kg
+vulnweave map /path/to/repo
+```
+
+Persist the graph for later review:
+
+```bash
+vulnweave map /path/to/repo --out /path/to/repo/.vulnweave
+```
+
+Find candidates from either a live repo path or a persisted graph:
+
+```bash
+vulnweave candidates /path/to/repo
+vulnweave candidates /path/to/repo/.vulnweave
 ```
 
 Emit machine-readable output:
 
 ```bash
-security-kg map /path/to/repo --json
-security-kg candidates /path/to/repo/.security-kg --json
+vulnweave map /path/to/repo --json
+vulnweave candidates /path/to/repo/.vulnweave --json
 ```
 
-Run the bundled generic smoke fixture:
+A typical candidate review loop looks like:
 
-```bash
-security-kg map examples/remote_resume_drift --out /tmp/security-kg-smoke
-security-kg candidates /tmp/security-kg-smoke
+```text
+map repo
+  -> inspect candidates
+  -> read the exact source paths and functions in the evidence
+  -> reproduce or reject the suspected trust-boundary drift
+  -> search prior findings/PRs/CVEs for duplicates
+  -> write a maintainer-safe patch or report
+  -> add the finding to the vault
+  -> rebuild the vault graph
 ```
 
-## Obsidian finding-vault usage
+## Obsidian finding-vault workflow
 
-Build graph artifacts in a vault:
+Build graph artifacts inside a vault:
 
 ```bash
-security-kg vault-graph \
+vulnweave vault-graph \
   --vault "/path/to/example-vault" \
   --findings-dir "03 - Findings" \
   --targets-dir "02 - Targets" \
   --output-dir "99 - Graph"
 ```
 
-Dry run without writing:
+Dry run without writing files:
 
 ```bash
-security-kg vault-graph --vault /path/to/example-vault --dry-run
+vulnweave vault-graph --vault /path/to/example-vault --dry-run
 ```
 
 The command writes:
 
-- `security-finding-graph.json` — machine-readable graph for custom dashboards or scripts
-- `Security Finding Graph.canvas` — Obsidian Canvas view of findings, targets, tags, CWEs, and related notes
-- `Security Finding Graph.md` — Obsidian dashboard note with wikilinks, summary counts, and Dataview snippets
+- `vulnweave-graph.json` — machine-readable graph for scripts, dashboards, or later importers
+- `VulnWeave Graph.canvas` — Obsidian Canvas view of findings, targets, tags, CWEs, CVEs, repos, and PRs
+- `VulnWeave Graph.md` — dashboard note with summary counts, links, and Dataview helpers
 
-## Finding note conventions
+## Suggested note conventions
 
-The scanner works with normal Obsidian Markdown. It gets better if notes use YAML frontmatter:
+VulnWeave works with ordinary Markdown, but it gets more useful when findings use predictable frontmatter:
 
 ```yaml
 ---
@@ -120,38 +178,82 @@ repo: https://github.com/example-org/example-repo
 ---
 ```
 
-It also reads:
+The body can use normal Obsidian links and tags:
 
-- Wikilinks: `[[Target - Example]]`
-- Hashtags: `#prompt-injection`
-- CVEs/CWEs in text: `CVE-2026-0001`, `CWE-94`
-- GitHub URLs and PR URLs
+```markdown
+Links to [[Target - Example App]] and #remote-to-local.
+Related class: CWE-94.
+Possible duplicate: https://github.com/example-org/example-repo/pull/123
+```
+
+Recommended finding sections:
+
+- **Boundary** — who controls the input and what trust boundary is crossed?
+- **Invariant** — what security property should have held?
+- **Evidence** — source paths, functions, graph nodes, logs, or screenshots.
+- **Proof strategy** — the smallest safe repro needed to confirm impact.
+- **Duplicate check** — related issues, PRs, CVEs, advisories, and prior notes.
+- **Patch/report notes** — maintainer-safe framing and remediation direction.
 
 ## End-to-end workflow
 
 ```text
 source repo
-  -> security-kg map
-  -> security-kg candidates
+  -> vulnweave map
+  -> vulnweave candidates
   -> local proof / duplicate check / patch
   -> vault finding note
-  -> security-kg vault-graph
+  -> vulnweave vault-graph
   -> Obsidian duplicate, coverage, and variant review
 ```
+
+## Output model
+
+VulnWeave currently uses simple JSON/JSONL artifacts so the data is easy to inspect and script:
+
+- `meta.json` — graph metadata and source root
+- `nodes.jsonl` — one graph node per line
+- `edges.jsonl` — one graph edge per line
+- `vulnweave-graph.json` — merged vault graph export
+
+This keeps the tool local-first and avoids requiring a database while the schema is still evolving.
 
 ## Development
 
 ```bash
-python3 -m pytest -q
-python3 -m ruff check src tests examples
-python3 -m compileall src tests examples
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+python -m pytest -q
+python -m ruff check src tests examples
+python -m compileall -q src tests examples
 ```
+
+CI runs the same core checks on Python 3.9 and 3.12.
+
+## Design principles
+
+- **Local-first:** source repos and vaults stay on your machine unless you choose to publish results.
+- **Evidence over claims:** candidates should point to concrete paths, symbols, and relations.
+- **Human-in-the-loop:** the tool supports proof and reporting; it does not declare CVEs for you.
+- **Graph-shaped memory:** every finding should become easier to compare with previous findings.
+- **Plain files:** JSONL and Markdown first, database later only if the workflow needs it.
 
 ## Roadmap
 
-- Add route/webhook extractors.
-- Add list-filter/direct-load drift detection.
-- Add bearer handle ownership checks for jobs, processes, sessions, and artifacts.
-- Add deterministic proof-skeleton generation.
-- Add candidate-to-vault-note export.
-- Add richer vault graph pivots for duplicate posture and sibling variants.
+Near-term:
+
+- Add candidate-to-vault finding note export.
+- Add richer code edges for routes, webhooks, background jobs, and tool calls.
+- Add more invariant detectors for list-filter/direct-load drift, bearer-handle ownership gaps, upload path traversal, symlink risk, and prompt/content injection to host-side tool boundaries.
+- Add duplicate/sibling insight commands for existing vaults.
+
+Longer-term:
+
+- Interactive graph dashboard.
+- Proof-skeleton generation from candidate evidence.
+- Cross-repo bug-class clustering.
+- Import/export bridges for SARIF, GitHub issues, and disclosure trackers.
+
+## Status
+
+VulnWeave is an early MVP. Use it as a research assistant and workflow scaffold, not as a complete scanner.

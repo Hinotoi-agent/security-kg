@@ -73,9 +73,9 @@ tags: [ssrf]
 
     assert main(["vault-graph", "--vault", str(vault)]) == 0
 
-    graph_json = vault / "99 - Graph" / "security-finding-graph.json"
-    canvas = vault / "99 - Graph" / "Security Finding Graph.canvas"
-    dashboard = vault / "99 - Graph" / "Security Finding Graph.md"
+    graph_json = vault / "99 - Graph" / "vulnweave-graph.json"
+    canvas = vault / "99 - Graph" / "VulnWeave Graph.canvas"
+    dashboard = vault / "99 - Graph" / "VulnWeave Graph.md"
     assert graph_json.exists()
     assert canvas.exists()
     assert dashboard.exists()

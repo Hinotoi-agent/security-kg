@@ -3,14 +3,14 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
-name = "security-kg"
+name = "vulnweave"
 version = "0.1.0"
-description = "Unified security knowledge graph for source-code review and finding-vault workflows."
+description = "Local-first vulnerability research graph for source-code review, proof planning, and finding-vault workflows."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [{name = "Lennon"}]
-keywords = ["security", "sast", "knowledge-graph", "vulnerability-research"]
+keywords = ["security", "sast", "knowledge-graph", "vulnerability-research", "obsidian"]
 dependencies = [
   "PyYAML>=6.0",
 ]
@@ -22,7 +22,11 @@ dev = [
 ]
 
 [project.scripts]
+vulnweave = "security_kg.cli:main"
 security-kg = "security_kg.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/security_kg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

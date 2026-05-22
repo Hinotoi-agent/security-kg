@@ -86,12 +86,12 @@ def write_dashboard(graph: Graph, path: Path, canvas_name: str, json_name: str) 
         "---",
         "type: graph-dashboard",
         "area: security-research",
-        "generated_by: security-kg",
+        "generated_by: vulnweave",
         "---",
         "",
-        "# Security Finding Graph",
+        "# VulnWeave Graph",
         "",
-        "Generated knowledge-graph dashboard for security findings.",
+        "Generated vulnerability research graph dashboard for security findings.",
         "",
         "## Open",
         "",
@@ -133,9 +133,9 @@ def write_dashboard(graph: Graph, path: Path, canvas_name: str, json_name: str) 
 
 
 def write_vault_artifacts(graph: Graph, output_dir: Path) -> dict[str, Path]:
-    graph_json = output_dir / "security-finding-graph.json"
-    canvas = output_dir / "Security Finding Graph.canvas"
-    dashboard = output_dir / "Security Finding Graph.md"
+    graph_json = output_dir / "vulnweave-graph.json"
+    canvas = output_dir / "VulnWeave Graph.canvas"
+    dashboard = output_dir / "VulnWeave Graph.md"
     write_vault_graph_json(graph, graph_json)
     write_canvas(graph, canvas)
     write_dashboard(graph, dashboard, canvas_name=canvas.name, json_name=graph_json.name)

@@ -1,1 +1,1 @@
-"""Obsidian/vault graph support for security-kg."""
+"""Obsidian/vault graph support for VulnWeave."""
