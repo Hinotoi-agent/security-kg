@@ -48,6 +48,13 @@ python -m security_kg.cli map /path/to/repo --json
 python -m security_kg.cli candidates /path/to/repo/.security-kg --json
 ```
 
+Run the bundled generic smoke fixture:
+
+```bash
+python -m security_kg.cli map examples/remote_resume_drift --out /tmp/security-kg-smoke
+python -m security_kg.cli candidates /tmp/security-kg-smoke
+```
+
 With an installed editable package:
 
 ```bash
