@@ -1,0 +1,26 @@
+name: False positive
+description: Report a candidate that should not be emitted
+title: "false positive: "
+labels: [false-positive]
+body:
+  - type: input
+    id: pattern
+    attributes:
+      label: Pattern
+      description: Candidate pattern name, e.g. bearer-handle-ownership-gap
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Candidate output
+      description: Paste the relevant candidate output with private paths/details redacted.
+    validations:
+      required: true
+  - type: textarea
+    id: why_safe
+    attributes:
+      label: Why this is safe
+      description: Explain the authorization, containment, validation, or trust-boundary control VulnWeave missed.
+    validations:
+      required: true

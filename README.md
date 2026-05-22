@@ -40,6 +40,10 @@ VulnWeave tries to make that chain explicit and reusable.
 
 `vulnweave candidates` reads either a source repo or a persisted graph directory and prints review candidates with supporting evidence. These are **not automatic vulnerability claims**; they are structured prompts for manual proof.
 
+### Candidate-to-finding export
+
+`vulnweave export-finding` bridges source candidates into Obsidian finding notes. It takes a candidate ID, writes a draft note with frontmatter, evidence, proof strategy, duplicate-check checklist, and patch/disclosure placeholders, then that note can be folded into `vulnweave vault-graph`.
+
 ### Finding-vault graph
 
 `vulnweave vault-graph` scans an Obsidian vault and writes graph artifacts that help with:
@@ -90,9 +94,11 @@ Run the bundled smoke fixture:
 ```bash
 vulnweave map examples/remote_resume_drift --out /tmp/vulnweave-smoke
 vulnweave candidates /tmp/vulnweave-smoke
+vulnweave vault-graph --vault examples/vault --dry-run
+vulnweave doctor --repo examples/remote_resume_drift --graph /tmp/vulnweave-smoke --vault examples/vault
 ```
 
-You should see a mapped graph summary and at least one invariant-backed candidate from the fixture.
+You should see a mapped graph summary, at least one invariant-backed candidate from the fixture, a vault graph dry-run summary, and passing doctor checks.
 
 ## Source repo workflow
 
@@ -121,6 +127,18 @@ Emit machine-readable output:
 vulnweave map /path/to/repo --json
 vulnweave candidates /path/to/repo/.vulnweave --json
 ```
+
+Export a candidate into a vault finding note:
+
+```bash
+vulnweave export-finding /path/to/repo/.vulnweave \
+  --candidate resume-load_by_id-3 \
+  --vault /path/to/example-vault \
+  --target "Target - Example App" \
+  --repo-url https://github.com/example-org/example-repo
+```
+
+The exported note includes YAML frontmatter, the graph path, evidence, a proof strategy, duplicate-check checklist, reproduction placeholders, patch/PR notes, and disclosure/CVE notes.
 
 A typical candidate review loop looks like:
 
@@ -151,6 +169,12 @@ Dry run without writing files:
 
 ```bash
 vulnweave vault-graph --vault /path/to/example-vault --dry-run
+```
+
+Print duplicate, stale-draft, missing-field, and variant-hunting hints:
+
+```bash
+vulnweave vault-insights --vault /path/to/example-vault
 ```
 
 The command writes:
@@ -211,12 +235,20 @@ source repo
 
 VulnWeave currently uses simple JSON/JSONL artifacts so the data is easy to inspect and script:
 
-- `meta.json` — graph metadata and source root
+- `meta.json` — graph metadata and source root, including `schema_version: vulnweave.graph.v1`
 - `nodes.jsonl` — one graph node per line
 - `edges.jsonl` — one graph edge per line
-- `vulnweave-graph.json` — merged vault graph export
+- `vulnweave-graph.json` — merged vault graph export with `schema_version: vulnweave.vault_graph.v1`
 
-This keeps the tool local-first and avoids requiring a database while the schema is still evolving.
+JSON candidate output uses `schema_version: vulnweave.candidates.v1`. This keeps the tool local-first and avoids requiring a database while the schema is still evolving.
+
+## Doctor checks
+
+Use `doctor` to check local paths and expected graph/vault structure:
+
+```bash
+vulnweave doctor --repo /path/to/repo --graph /path/to/repo/.vulnweave --vault /path/to/example-vault
+```
 
 ## Development
 
@@ -242,10 +274,10 @@ CI runs the same core checks on Python 3.9 and 3.12.
 
 Near-term:
 
-- Add candidate-to-vault finding note export.
-- Add richer code edges for routes, webhooks, background jobs, and tool calls.
-- Add more invariant detectors for list-filter/direct-load drift, bearer-handle ownership gaps, upload path traversal, symlink risk, and prompt/content injection to host-side tool boundaries.
-- Add duplicate/sibling insight commands for existing vaults.
+- Improve interprocedural reachability and framework-specific handler mapping.
+- Add more language frontends beyond Python.
+- Add confidence scoring and suppression/allowlist support for known-safe patterns.
+- Add richer vault aging/status analytics and optional GitHub PR status hydration.
 
 Longer-term:
 

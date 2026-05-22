@@ -9,6 +9,9 @@ NodeKind = Literal[
     "function",
     "sink",
     "session_scope",
+    "route",
+    "webhook",
+    "file",
     "finding",
     "target",
     "repo",
@@ -21,6 +24,8 @@ NodeKind = Literal[
 EdgeKind = Literal[
     "defined_in",
     "calls",
+    "handled_by",
+    "uses_scope",
     "evidence",
     "wikilinks",
     "tagged",
@@ -92,6 +97,9 @@ class Graph:
     def add_unique_edge(self, edge: Edge) -> None:
         if edge not in self.edges:
             self.edges.append(edge)
+
+    def node_by_id(self, node_id: str) -> Node | None:
+        return next((node for node in self.nodes if node.id == node_id), None)
 
 
 @dataclass(frozen=True)
