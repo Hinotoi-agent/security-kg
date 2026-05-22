@@ -7,7 +7,9 @@ from pathlib import Path
 
 from security_kg.extract import map_repo
 from security_kg.invariants import find_candidates
+from security_kg.io import graph_to_dict, is_graph_dir, read_graph_jsonl, write_graph_jsonl
 from security_kg.report import render_candidate_markdown
+from security_kg.schema import Graph
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,9 +26,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Emit JSON instead of a text summary",
     )
+    map_parser.add_argument(
+        "--out",
+        type=Path,
+        help="Write graph files to this directory as meta.json, nodes.jsonl, and edges.jsonl",
+    )
 
     candidates_parser = subparsers.add_parser("candidates", help="Find invariant-backed candidates")
-    candidates_parser.add_argument("repo", type=Path)
+    candidates_parser.add_argument(
+        "source",
+        type=Path,
+        help="Repository path or graph directory produced by `security-kg map --out`",
+    )
     candidates_parser.add_argument(
         "--json",
         action="store_true",
@@ -37,24 +48,20 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "map":
         graph = map_repo(args.repo)
+        if args.out:
+            write_graph_jsonl(graph, args.out)
         if args.json:
-            print(
-                json.dumps(
-                    {
-                        "root": str(graph.root),
-                        "nodes": [asdict(node) for node in graph.nodes],
-                        "edges": [asdict(edge) for edge in graph.edges],
-                    },
-                    indent=2,
-                    sort_keys=True,
-                )
-            )
+            print(json.dumps(graph_to_dict(graph), indent=2, sort_keys=True))
         else:
-            print(f"Mapped {len(graph.nodes)} nodes and {len(graph.edges)} edges from {graph.root}")
+            suffix = f"; wrote JSONL graph to {args.out}" if args.out else ""
+            print(
+                f"Mapped {len(graph.nodes)} nodes and {len(graph.edges)} edges "
+                f"from {graph.root}{suffix}"
+            )
         return 0
 
     if args.command == "candidates":
-        graph = map_repo(args.repo)
+        graph = _load_graph_or_map_repo(args.source)
         candidates = find_candidates(graph)
         if args.json:
             print(
@@ -73,6 +80,12 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.error(f"unknown command: {args.command}")
     return 2
+
+
+def _load_graph_or_map_repo(source: Path) -> Graph:
+    if is_graph_dir(source):
+        return read_graph_jsonl(source)
+    return map_repo(source)
 
 
 if __name__ == "__main__":

@@ -5,8 +5,9 @@
 The first milestone focuses on a narrow, high-signal workflow for source-code vulnerability review:
 
 1. Map security-relevant repo facts into graph nodes.
-2. Detect invariant violations such as remote command exposure plus direct session/object loads.
-3. Render candidate reports with boundary, evidence, graph path, and proof strategy.
+2. Persist the graph as local JSONL so later review steps can be replayed without remapping.
+3. Detect invariant violations such as remote command exposure plus direct session/object loads.
+4. Render candidate reports with boundary, evidence, graph path, and proof strategy.
 
 This is intentionally not a vulnerability oracle. It produces review candidates that still require local proof, duplicate checks, and maintainer-safe reporting.
 
@@ -21,17 +22,38 @@ The initial Python extractor detects:
 
 ## Usage
 
+Map a repository and print a summary:
+
 ```bash
 python -m security_kg.cli map /path/to/repo
+```
+
+Map a repository and persist the graph for later review:
+
+```bash
+python -m security_kg.cli map /path/to/repo --out /path/to/repo/.security-kg
+```
+
+Find candidates either directly from the repo or from the persisted graph:
+
+```bash
 python -m security_kg.cli candidates /path/to/repo
+python -m security_kg.cli candidates /path/to/repo/.security-kg
+```
+
+Emit machine-readable output:
+
+```bash
+python -m security_kg.cli map /path/to/repo --json
+python -m security_kg.cli candidates /path/to/repo/.security-kg --json
 ```
 
 With an installed editable package:
 
 ```bash
 pip install -e '.[dev]'
-security-kg map /path/to/repo
-security-kg candidates /path/to/repo
+security-kg map /path/to/repo --out /path/to/repo/.security-kg
+security-kg candidates /path/to/repo/.security-kg
 ```
 
 ## Development
@@ -43,7 +65,6 @@ python3 -m ruff check src tests
 
 ## Roadmap
 
-- Add JSONL graph export/import.
 - Add route/webhook extractors.
 - Add list-filter/direct-load drift detection.
 - Add bearer handle ownership checks for jobs, processes, sessions, and artifacts.
